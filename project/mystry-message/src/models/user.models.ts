@@ -14,7 +14,7 @@ const messageSchema = new Schema<messageType>({
 })
 
 const userSchema = new Schema<userType>({
-    username: {
+    userName: {
         type: String,
         required: [true, 'Username is required'],
         trim: true,
@@ -38,7 +38,7 @@ const userSchema = new Schema<userType>({
         type: Date,
         required: true,
     },
-    isFinite: {
+    isVerified: {
         type: Boolean,
         required: true,
         default: false,
@@ -53,4 +53,4 @@ const userSchema = new Schema<userType>({
 
 
 
-const userModel = (mongoose.models.User as mongoose.Model<userType>) || mongoose.model<userType>('User' , userSchema);
+export const userModel = (mongoose.models.User as mongoose.Model<userType>) || mongoose.model<userType>('User' , userSchema);
