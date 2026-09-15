@@ -1,112 +1,119 @@
-
 import dbConnect from "@/lib/dbConnect";
 import { userModel } from "@/models/user.models";
 import bcrypt from "bcryptjs";
 import { sendVerificationMail } from "@/helpers/sendVerificationMail";
 
-
-
 export async function POST(request: Request): Promise<Response> {
-    //connect the database
+    console.log("🚀 Signup API called");
+
+    // connect the database
     await dbConnect();
+    console.log("✅ Database connected");
 
     try {
-        const { userName, email, password } = await request.json()
+        const body = await request.json();
+        console.log("📦 Request body:", body);
 
-        // if the user already exists
+        const { userName, email, password } = body;
+
+        // check username
+        console.log("🔍 Checking username:", userName);
         const existingUserVerifiedByUsername = await userModel.findOne({
             userName,
             isVerified: true
-        })
-
+        });
+        console.log("👤 Username check result:", existingUserVerifiedByUsername);
 
         if (existingUserVerifiedByUsername) {
+            console.log("❌ Username already taken");
             return Response.json(
-                {
-                    sucess: false,
-                    message: 'Username already taken'
-                },
+                { success: false, message: "Username already taken" },
                 { status: 400 }
-            )
+            );
         }
 
+        // check email
+        console.log("📧 Checking email:", email);
+        const existingUserByEmail = await userModel.findOne({ email });
+        console.log("📧 Email check result:", existingUserByEmail);
 
-        //check if user exists by email then go to if block 
-        const existingUserByEmail = await userModel.findOne({email})
-         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
-        if(existingUserByEmail){
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log("🔐 Generated OTP:", otp);
 
-            // if the user is exist and also verified then do nothing
-             if(existingUserByEmail.isVerified){
+        if (existingUserByEmail) {
+            if (existingUserByEmail.isVerified) {
+                console.log("❌ Email already verified");
                 return Response.json(
-                    {
-                        sucess: false,
-                        message: 'Email already registered. Please login.'
-                    },
+                    { success: false, message: "Email already registered. Please login." },
                     { status: 400 }
-                )
-            }else{
+                );
+            } else {
+                console.log("♻ Updating existing unverified user");
 
-                // if user exist but not verified then update the details
-                const hasedPassword = await bcrypt.hash(password , 10)
+                const hashedPassword = await bcrypt.hash(password, 10);
+                console.log("🔑 Password hashed");
+
                 const expiryDate = new Date();
-                expiryDate.setHours(expiryDate.getHours() + 1); // 1 hour expiry
+                expiryDate.setHours(expiryDate.getHours() + 1);
+
                 existingUserByEmail.userName = userName;
-                existingUserByEmail.password = hasedPassword;
+                existingUserByEmail.password = hashedPassword;
                 existingUserByEmail.verifyCode = otp;
                 existingUserByEmail.verifyCodeExpiry = expiryDate;
-                await existingUserByEmail.save();
-            }
-        }else{
 
-            const hasedPassword = await bcrypt.hash(password , 10)
+                await existingUserByEmail.save();
+                console.log("✅ User updated");
+            }
+        } else {
+            console.log("🆕 Creating new user");
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+            console.log("🔑 Password hashed");
+
             const expiryDate = new Date();
-            expiryDate.setHours(expiryDate.getHours() + 1); // 1 hour expiry
-            
+            expiryDate.setHours(expiryDate.getHours() + 1);
+
             const newUser = new userModel({
                 userName,
                 email,
-                password: hasedPassword,
+                password: hashedPassword,
                 verifyCode: otp,
                 verifyCodeExpiry: expiryDate,
                 isVerified: false,
                 isAcceptingMessage: true,
                 messages: []
-            })
+            });
 
             await newUser.save();
+            console.log("✅ New user saved");
         }
 
+        console.log("📨 Sending verification email...");
+        const emailResponse = await sendVerificationMail(email, userName, otp);
+        console.log("📨 Email response:", emailResponse);
 
-        // send verification mail
-      const emailResponse =   await sendVerificationMail(email, userName , otp);
+        if (!emailResponse.success) {
+            console.log("❌ Email sending failed");
+            return Response.json(
+                { success: false, message: emailResponse.message },
+                { status: 500 }
+            );
+        }
 
-      // if response is not sucess
-      if(!emailResponse.sucess){
-        return Response.json({
-            sucess: false,
-            message:  emailResponse.message
-        },
-            { status: 500 }
-        )
-      }
-
-      // if everything is sucess
-       return Response.json({
-            sucess: false,
-            message:  "User Registered Successfully. Please verify your email.",
-        },
+        console.log("🎉 Signup successful");
+        return Response.json(
+            {
+                success: true,
+                message: "User Registered Successfully. Please verify your email."
+            },
             { status: 201 }
-        )
+        );
 
     } catch (error) {
-        console.log('Error in sign-up route:', error);
-        return Response.json({
-            sucess: false,
-            message: 'Error Registring User'
-        },
+        console.error("🔥 Error in sign-up route:", error);
+        return Response.json(
+            { success: false, message: "Error Registering User" },
             { status: 500 }
-        )
+        );
     }
-
 }
