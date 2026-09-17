@@ -1,3 +1,12 @@
+
+//  settting meta data like title fevicon and other things 
+  export const metadata = {
+     title : {
+       template : "%s | Next.js App",
+       default : "Next.js App"
+     }
+  }
+
 export default function RootLayout({ children }) {
   return (
     <html

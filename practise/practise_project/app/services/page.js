@@ -1,4 +1,8 @@
 import Link from "next/link";
+export const metadata = {
+     title : "Service Page",
+  }
+
 export default function services(){
     return (
         <>
